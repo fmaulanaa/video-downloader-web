@@ -32,7 +32,7 @@ function downloadYtDlp() {
           reject(err);
         });
       } else {
-        reject(new Error(\`Failed to download yt-dlp: \${response.statusCode}\`));
+        reject(new Error(`Failed to download yt-dlp: ${response.statusCode}`));
       }
     }).on('error', (err) => {
       if (fs.existsSync(dest)) fs.unlinkSync(dest);
@@ -54,13 +54,13 @@ export async function POST(request) {
     }
 
     // Buat temporary directory
-    const tempDir = path.join(os.tmpdir(), \`download_\${Date.now()}\`)
+    const tempDir = path.join(os.tmpdir(), `download_${Date.now()}`)
     fs.mkdirSync(tempDir, { recursive: true })
 
     try {
       // Format filename
       const uniqueCode = extractCodeFromUrl(url)
-      const filename = \`\${uniqueCode}_\${String(number).padStart(3, '0')}.mp4\`
+      const filename = `${uniqueCode}_${String(number).padStart(3, '0')}.mp4`
       const outputPath = path.join(tempDir, filename)
 
       // Build yt-dlp command
@@ -71,7 +71,7 @@ export async function POST(request) {
 
       // Command untuk download dengan yt-dlp (menggunakan Python yt-dlp)
       const ytdlpPath = await downloadYtDlp();
-      const command = \`\${ytdlpPath} -f "\${formatSpec}" -o "\${outputPath}" --no-playlist --quiet --no-warnings --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" "\${url}"\`
+      const command = `${ytdlpPath} -f "${formatSpec}" -o "${outputPath}" --no-playlist --quiet --no-warnings --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" "${url}"`
 
       console.log('Executing:', command)
 
@@ -98,7 +98,7 @@ export async function POST(request) {
 
       return NextResponse.json({
         success: true,
-        message: \`Video berhasil diunduh dengan nomor #\${String(number).padStart(3, '0')}\`,
+        message: `Video berhasil diunduh dengan nomor #${String(number).padStart(3, '0')}`,
         filename: downloadedFile,
         data: base64Data,
         size: fileBuffer.length
