@@ -4,8 +4,42 @@ import { promisify } from 'util'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
+import https from 'https'
 
 const execAsync = promisify(exec)
+
+function downloadYtDlp() {
+  const dest = '/tmp/yt-dlp_linux';
+  
+  if (fs.existsSync(dest) && fs.statSync(dest).size > 1000000) {
+    return Promise.resolve(dest);
+  }
+
+  return new Promise((resolve, reject) => {
+    const file = fs.createWriteStream(dest);
+    https.get('https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux', (response) => {
+      if (response.statusCode === 302) {
+        https.get(response.headers.location, (res) => {
+          res.pipe(file);
+          file.on('finish', () => {
+            file.close(() => {
+              fs.chmodSync(dest, '755');
+              resolve(dest);
+            });
+          });
+        }).on('error', (err) => {
+          fs.unlinkSync(dest);
+          reject(err);
+        });
+      } else {
+        reject(new Error(\`Failed to download yt-dlp: \${response.statusCode}\`));
+      }
+    }).on('error', (err) => {
+      if (fs.existsSync(dest)) fs.unlinkSync(dest);
+      reject(err);
+    });
+  });
+}
 
 export async function POST(request) {
   try {
@@ -20,13 +54,13 @@ export async function POST(request) {
     }
 
     // Buat temporary directory
-    const tempDir = path.join(os.tmpdir(), `download_${Date.now()}`)
+    const tempDir = path.join(os.tmpdir(), \`download_\${Date.now()}\`)
     fs.mkdirSync(tempDir, { recursive: true })
 
     try {
       // Format filename
       const uniqueCode = extractCodeFromUrl(url)
-      const filename = `${uniqueCode}_${String(number).padStart(3, '0')}.mp4`
+      const filename = \`\${uniqueCode}_\${String(number).padStart(3, '0')}.mp4\`
       const outputPath = path.join(tempDir, filename)
 
       // Build yt-dlp command
@@ -36,7 +70,8 @@ export async function POST(request) {
       else if (format === 'mkv') formatSpec = 'bestvideo[ext=mkv]+bestaudio[ext=mkv]/best[ext=mkv]'
 
       // Command untuk download dengan yt-dlp (menggunakan Python yt-dlp)
-      const command = `yt-dlp -f "${formatSpec}" -o "${outputPath}" --no-playlist --quiet --no-warnings --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" "${url}"`
+      const ytdlpPath = await downloadYtDlp();
+      const command = \`\${ytdlpPath} -f "\${formatSpec}" -o "\${outputPath}" --no-playlist --quiet --no-warnings --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" "\${url}"\`
 
       console.log('Executing:', command)
 
@@ -63,7 +98,7 @@ export async function POST(request) {
 
       return NextResponse.json({
         success: true,
-        message: `Video berhasil diunduh dengan nomor #${String(number).padStart(3, '0')}`,
+        message: \`Video berhasil diunduh dengan nomor #\${String(number).padStart(3, '0')}\`,
         filename: downloadedFile,
         data: base64Data,
         size: fileBuffer.length
