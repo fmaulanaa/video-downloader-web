@@ -1,10 +1,16 @@
 {
-  "functions": {
-    "api/download.py": {
+ "functions": {
+    "python-api/download.py": {
       "runtime": "python3.12",
       "maxDuration": 60
     }
   },
+  "rewrites": [
+    {
+      "source": "/api/download",
+      "destination": "/python-api/download.py"
+    }
+  ],
   "builds": [
     {
       "src": "api/download.py",
