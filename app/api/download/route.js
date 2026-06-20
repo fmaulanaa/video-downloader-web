@@ -69,24 +69,36 @@ export async function POST(request) {
       else if (format === 'webm') formatSpec = 'bestvideo[ext=webm]+bestaudio[ext=webm]/best[ext=webm]'
       else if (format === 'mkv') formatSpec = 'bestvideo[ext=mkv]+bestaudio[ext=mkv]/best[ext=mkv]'
 
-      // Command untuk download dengan yt-dlp (menggunakan Python yt-dlp)
+      // Command untuk download dengan yt-dlp
       const ytdlpPath = await downloadYtDlp();
-      const command = `${ytdlpPath} -f "${formatSpec}" -o "${outputPath}" --no-playlist --quiet --no-warnings --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" "${url}"`
+      const command = `${ytdlpPath} -f "${formatSpec}" -o "${outputPath}" --no-playlist --quiet --no-warnings --extractor-args "youtube:player_client=android,web" --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" "${url}"`
 
       console.log('Executing:', command)
 
       // Eksekusi download
-      const { stdout, stderr } = await execAsync(command, { 
-        timeout: 120000,
-        maxBuffer: 1024 * 1024 * 100 // 100MB
-      })
+      let stdout, stderr;
+      try {
+        const result = await execAsync(command, { 
+          timeout: 120000,
+          maxBuffer: 1024 * 1024 * 100 // 100MB
+        });
+        stdout = result.stdout;
+        stderr = result.stderr;
+      } catch (execError) {
+        console.error("yt-dlp exec error:", execError);
+        // Throw specific error if yt-dlp gives one (like 403 Forbidden)
+        if (execError.stderr) {
+           throw new Error(execError.stderr);
+        }
+        throw execError;
+      }
 
       // Cek apakah file berhasil didownload
       const files = fs.readdirSync(tempDir)
       const downloadedFile = files.find(f => f.endsWith('.mp4') || f.endsWith('.mkv') || f.endsWith('.webm'))
 
       if (!downloadedFile) {
-        throw new Error('File tidak ditemukan setelah download')
+        throw new Error('File tidak ditemukan setelah download. Ini bisa terjadi karena platform memblokir akses server (HTTP Error 403: Forbidden).')
       }
 
       const filePath = path.join(tempDir, downloadedFile)
